@@ -119,9 +119,4 @@ public class FindCountryUDF extends UDF {
             return ipEnd;
         }
     }
-
-    public static void main(String[] args) throws IOException {
-        FindCountryUDF findCountryUDF = new FindCountryUDF();
-        System.out.println(findCountryUDF.evaluate(new Text(args[0])));
-    }
 }
