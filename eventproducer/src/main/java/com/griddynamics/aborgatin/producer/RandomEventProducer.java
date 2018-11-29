@@ -2,11 +2,11 @@ package com.griddynamics.aborgatin.producer;
 
 import com.google.common.net.InetAddresses;
 import com.griddynamics.aborgatin.producer.classifiers.Product;
+import org.apache.commons.net.util.SubnetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.Socket;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -20,7 +20,35 @@ public class RandomEventProducer {
     private PrintWriter out;
     private static final String COLUMN_DELIMITER = ",";
     private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ssZ");
+    private Random rnd = new Random();
 
+    private List<String> masks;
+    {
+        masks = new ArrayList<>();
+        ClassLoader classLoader = getClass().getClassLoader();
+        File file = new File(classLoader.getResource("GeoLite2-Country-Blocks-IPv4.csv").getFile());
+        BufferedReader reader= null;
+        try {
+            reader = new BufferedReader(new FileReader(file));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        String line = null;
+        try {
+            line = reader.readLine();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            while(line!=null) {
+                masks.add(line.split(",")[0]);
+                line = reader.readLine();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
 
     public void start(String ip, int port, int amount, int delay) throws IOException, InterruptedException {
@@ -34,11 +62,10 @@ public class RandomEventProducer {
         Calendar calendar = GregorianCalendar.getInstance();
         calendar.add(Calendar.DAY_OF_MONTH, -7);
         Date weekAgo = calendar.getTime();
-        Random rnd = new Random();
         while (i < amount) {
             Product randomProduct = Product.values()[rnd.nextInt(Product.values().length)];
             Date date = new Date(ThreadLocalRandom.current().nextLong(weekAgo.getTime(), today.getTime()));
-            String ipAddress = InetAddresses.fromInteger(rnd.nextInt()).getHostAddress();
+            String ipAddress = getIpAddress();
             out.println(new StringBuilder(randomProduct.getName())
                     .append(COLUMN_DELIMITER)
                     .append(randomProduct.getPrice())
@@ -54,16 +81,30 @@ public class RandomEventProducer {
         LOGGER.info("Producer is finish");
     }
 
+    private String getIpAddress() {
+        int size = 0;
+        SubnetUtils.SubnetInfo info = null;
+        while (size == 0) {
+            String mask = masks.get(rnd.nextInt(masks.size()));
+            SubnetUtils utils = new SubnetUtils(mask);
+            info = utils.getInfo();
+            size = new Long(info.getAddressCountLong()).intValue();
+        }
+        return info.getAllAddresses()[rnd.nextInt(size)];
+
+    }
+
     public void stop() {
         out.close();
         try {
             clientSocket.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error("Error stopping client socket", e);
         }
     }
 
-    public static void main(String[] args) throws IOException {
+
+    public static void main(String[] args) throws IOException, InterruptedException {
         String ip = "127.0.0.1";
         int port = 44445;
         int amount = 3000;
@@ -96,7 +137,7 @@ public class RandomEventProducer {
             try {
                 randomEventProducer.start(ip, port, amount, delay);
             } catch (Exception e) {
-                LOGGER.error(e.getMessage());
+                LOGGER.error("Error producing", e);
             } finally {
                 randomEventProducer.stop();
             }
