@@ -1,11 +1,8 @@
 package com.griddynamics.aborgatin.producer;
 
 import com.google.common.net.InetAddresses;
-import com.griddynamics.aborgatin.producer.classifiers.Product;
 import com.griddynamics.aborgatin.producer.classifiers.ProductCategory;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.BufferedReader;
@@ -18,7 +15,6 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.Properties;
 
 public class RandomEventProducerTest {
     private static final int PORT_DEFAULT = 44445;
@@ -36,7 +32,7 @@ public class RandomEventProducerTest {
             public void run() {
                 try {
                     RandomEventProducer.main(args);
-                } catch (IOException  e) {
+                } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
                 }
             }
